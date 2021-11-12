@@ -24,4 +24,4 @@ hs_err_pid*
 /bin/
 
 #drecks classpath
-*.classpath
+.classpath
