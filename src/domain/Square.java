@@ -68,6 +68,13 @@ public class Square {
     count = 1;
   }
 
+  @Override
+  public boolean equals(Object obj) {
+    Square temp = (Square) obj;
+
+    return this.getID() == temp.getID();
+  }
+
 
 
 }

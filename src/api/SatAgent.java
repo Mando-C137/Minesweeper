@@ -2,7 +2,6 @@ package api;
 
 import java.awt.Point;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -22,7 +21,7 @@ import domain.Square;
  */
 public class SatAgent extends MSAgent {
 
-  Queue<Point> safeSquare = new ArrayDeque<Point>();
+  private Queue<Point> safeSquare = new ArrayDeque<Point>();
 
   public final static int NoBomb = 0;
 
@@ -76,7 +75,10 @@ public class SatAgent extends MSAgent {
         firstDecision = false;
       } else {
         // x and y must be computed here
-        Point p = this.getSafeSquare();
+        if (this.safeSquare.isEmpty()) {
+          getSafeSquare();
+        }
+        Point p = this.safeSquare.poll();
 
         x = (int) p.getX();
         y = (int) p.getY();
@@ -166,18 +168,22 @@ public class SatAgent extends MSAgent {
         /*
          * Ausgabe einer möglichen Loesung
          */
-        System.out.println("Problem ist loesbar mit folgender Loesung:");
+        // System.out.println("Problem ist loesbar mit folgender Loesung:");
         // System.out.println(Arrays.toString(problem.findModel()));
 
-        int[] ls = null;
-        System.out.println(Arrays.toString((ls = problem.findModel())));
+        int[] ls = problem.findModel();
 
 
         for (int i = 0; i < ls.length; i++) {
           if (ls[i] < 0 && myMap.get(Math.abs(ls[i])).isCovered()) {
-            System.out.println("Das Square " + myMap.get(Math.abs(ls[i])).getPoint().toString()
-                + "wird gewaehlt und das covered ist " + myMap.get(Math.abs(ls[i])).isCovered());
-            return myMap.get(Math.abs(ls[i])).getPoint();
+            if (displayActivated)
+              System.out.println("Das Square " + myMap.get(Math.abs(ls[i])).getPoint().toString()
+                  + "wird zur Queue hinzugefuegt");
+
+            if (!safeSquare.contains(myMap.get(Math.abs(ls[i])).getPoint())) {
+              safeSquare.add(myMap.get(Math.abs(ls[i])).getPoint());
+            }
+
           }
         }
 
@@ -201,32 +207,68 @@ public class SatAgent extends MSAgent {
 
     LinkedList<int[]> clauses = new LinkedList<int[]>();
 
-    switch (this.arr[x][y].getNeighbourBombs()) {
 
-      case 0:
-        clauses.addAll(zeroNeighbours(x, y));
-        break;
-      case 1:
-        break;
-      case 2:
-        break;
-      case 3:
-        break;
-      case 4:
-        break;
-      case 5:
-        break;
-      case 6:
-        break;
-      case 7:
-        break;
-      case 8:
-        break;
+    if (this.arr[x][y].getNeighbourBombs() == 0) {
+      clauses.addAll(zeroNeighbours(x, y));
+    } else {
+      for (LinkedList<Integer> list : oneNeighbour(x, y, this.arr[x][y].getNeighbourBombs())) {
+        clauses.add(list.stream().mapToInt(i -> i).toArray());
+      }
     }
 
-
+    // adding the KB of known notmines
+    for (int i = 0; i < this.arr.length; i++) {
+      for (int j = 0; j < this.arr[i].length; j++) {
+        if (!this.arr[i][j].isCovered()) {
+          clauses.add(new int[] {-this.arr[i][j].getID()});
+        }
+      }
+    }
 
     return clauses;
+
+  }
+
+  private LinkedList<LinkedList<Integer>> oneNeighbour(int x, int y, int numNeighbours) {
+
+    LinkedList<LinkedList<Integer>> result = new LinkedList<LinkedList<Integer>>();
+
+
+    for (int i = 0; i < 256; i++) {
+
+      LinkedList<Integer> temp = new LinkedList<Integer>();
+
+      if (Integer.bitCount(i) != numNeighbours) {
+        String a = Integer.toBinaryString(i);
+        while (a.length() != 8) {
+          a = "0" + a;
+        }
+
+        int n = 0;
+        for (int k = -1; k <= 1; k++) {
+          for (int l = -1; l <= 1; l++) {
+
+            if (inBounds(x + k, y + l) && !(k == 0 && l == k)) {
+              if (String.valueOf(a.charAt(n++)) == "1") {
+                temp.add(-this.arr[x + k][y + l].getID());
+
+              } else {
+                temp.add(this.arr[x + k][y + l].getID());
+
+              }
+            }
+
+          }
+        }
+
+        result.add(temp);
+
+      }
+
+
+    }
+
+    return result;
 
   }
 

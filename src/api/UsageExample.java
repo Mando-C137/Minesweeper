@@ -23,11 +23,11 @@ public class UsageExample {
   public static void main(String[] args) {
 
     // use smaller numbers for larger fields
-    int iterations = 100;
+    int iterations = 1000;
 
     int success = 0;
     for (int i = 0; i < iterations; i++) {
-      MSField f = new MSField("fields/" + fields[0]);
+      MSField f = new MSField("fields/" + fields[15]);
       MSAgent agent = new SatAgent(f);
 
       // to see what happens in the first iteration
@@ -43,6 +43,7 @@ public class UsageExample {
       }
 
       Square.resetCounter();
+
     }
     double rate = (double) success / (double) iterations;
     System.out.println("Erfolgsquote: " + rate);
