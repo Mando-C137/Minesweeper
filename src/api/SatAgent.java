@@ -1,9 +1,11 @@
 package api;
 
+import static java.util.stream.Collectors.toList;
 import java.awt.Point;
 import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Queue;
 import org.sat4j.core.VecInt;
 import org.sat4j.pb.SolverFactory;
@@ -11,6 +13,8 @@ import org.sat4j.specs.ContradictionException;
 import org.sat4j.specs.IProblem;
 import org.sat4j.specs.ISolver;
 import org.sat4j.specs.TimeoutException;
+import org.sat4j.tools.ModelIterator;
+import domain.Clause;
 import domain.Square;
 
 /**
@@ -21,32 +25,63 @@ import domain.Square;
  */
 public class SatAgent extends MSAgent {
 
-  private Queue<Point> safeSquare = new ArrayDeque<Point>();
+  /**
+   * unopened but safe Squares
+   */
+  private Queue<Square> safeSquares;
 
-  public final static int NoBomb = 0;
+  /**
+   * opened and thus, safe Squares
+   */
+  private HashSet<Square> openedSquares;
 
-  public final static int Bomb = 2;
+  /**
+   * Squares that are uncertain to be safe
+   */
+  private HashSet<Square> unknownSquares;
 
-  public final static int possibleBomb = 1;
-
-  // public final static int NoBomb =;
-
+  /**
+   * map that maps the IDs of the Squares to themselves
+   */
   private HashMap<Integer, Square> myMap;
 
   private boolean displayActivated;
 
+  /**
+   * the 2x2 arr of Squares
+   */
   private Square[][] arr;
+
+  /**
+   * A non-duplicate list of the currentClauses of a state
+   */
+  private HashSet<Clause> currentClauses;
 
 
   public SatAgent(MSField field) {
     super(field);
-    displayActivated = false;
-    arr = new Square[this.field.getNumOfRows()][this.field.getNumOfCols()];
+    this.displayActivated = false;
+    this.arr = new Square[this.field.getNumOfCols()][this.field.getNumOfRows()];
     this.initArrs();
-    initHashMap();
+    this.initNeighbours();
+    this.initHashMap();
+    this.currentClauses = new HashSet<Clause>();
+
+    initSets();
 
 
+  }
 
+  private void initSets() {
+    this.safeSquares = new ArrayDeque<Square>();
+    this.openedSquares = new HashSet<Square>();
+    this.unknownSquares = new HashSet<Square>();
+
+    for (int i = 0; i < this.field.getNumOfCols(); i++) {
+      for (int j = 0; j < this.field.getNumOfRows(); j++) {
+        unknownSquares.add(this.arr[i][j]);
+      }
+    }
   }
 
   private void initHashMap() {
@@ -58,6 +93,16 @@ public class SatAgent extends MSAgent {
       }
     }
   }
+
+  private void initNeighbours() {
+    for (Square[] row : this.arr) {
+      for (Square s : row) {
+        s.initNeighbours(this);
+      }
+    }
+  }
+
+
 
   @Override
   public boolean solve() {
@@ -75,25 +120,38 @@ public class SatAgent extends MSAgent {
         firstDecision = false;
       } else {
         // x and y must be computed here
-        if (this.safeSquare.isEmpty()) {
-          getSafeSquare();
+        if (this.safeSquares.isEmpty()) {
+          calcKNF();
+          makeSAT();
         }
-        Point p = this.safeSquare.poll();
+        Point p;
+        if (this.safeSquares.isEmpty()) {
+          System.out.println("Guessing now");
 
-        x = (int) p.getX();
-        y = (int) p.getY();
+          List<Square> ls = this.unknownSquares.stream().collect(toList());
+          System.out.println(ls.size());
+          Square s = ls.get((int) (Math.random() * ls.size() / 2));
+          this.unknownSquares.remove(s);
+          this.safeSquares.add(s);
+        }
+
+
+        p = this.safeSquares.poll().getPoint();
+
+
+        x = (int) p.x;
+        y = (int) p.y;
       }
 
       if (displayActivated) {
         System.out.println("Uncovering (" + x + "," + y + ")");
       }
       feedback = field.uncover(x, y);
+      this.arr[x][y].uncover(feedback);
+      this.safeSquares.remove(this.arr[x][y]);
+      this.openedSquares.add(this.arr[x][y]);
 
-      if (feedback >= 0) {
-        this.arr[x][y].uncover(feedback);
-      } else {
-        // game endet eh
-      }
+      // this.printInformation();
 
     } while (feedback >= 0 && !field.solved());
 
@@ -123,168 +181,194 @@ public class SatAgent extends MSAgent {
   }
 
   private void initArrs() {
-    for (int i = 0; i < this.arr.length; i++) {
-      for (int j = 0; j < this.arr[i].length; j++) {
+    for (int i = 0; i < this.field.getNumOfCols(); i++) {
+      for (int j = 0; j < this.field.getNumOfRows(); j++) {
+
         this.arr[i][j] = new Square(new Point(i, j));
       }
     }
   }
 
-  private boolean inBounds(int x, int y) {
-    return x >= 0 && x < this.field.getNumOfRows() && y >= 0 && y < this.field.getNumOfCols();
+  public boolean inBounds(int x, int y) {
+    return x >= 0 && x < this.field.getNumOfCols() && y >= 0 && y < this.field.getNumOfRows();
   }
 
 
-  private Point getSafeSquare() {
+  private void makeSAT() {
 
-    ISolver solver = SolverFactory.newDefault();
-    solver.newVar(this.arr.length * this.arr[0].length);
-    // solver.setExpectedNumberOfClauses(31);
-
-    for (int i = 0; i < this.arr.length; i++) {
-      for (int j = 0; j < this.arr[i].length; j++) {
-        if (this.arr[i][j].isCovered()) {
-          // wenn es covered ist, kann man nix wissen
-        } else {
-          try {
-            for (int[] clause : createClause(i, j)) {
-              solver.addClause(new VecInt(clause));
-
-            }
-            solver.addClause(new VecInt(new int[] {-this.arr[i][j].getID()}));
-
-          } catch (ContradictionException e) {
-            System.out.println("contradiction ");
-          }
-        }
-      }
+    for (Square s : this.unknownSquares) {
+      s.setBomb(Square.UNKNOWN);
+      s.change(false);
     }
-    IProblem problem = solver;
-    /*
-     * Das Problem wird geloest.
-     */
+
+
     try {
-      if (problem.isSatisfiable()) {
-        /*
-         * Ausgabe einer möglichen Loesung
-         */
-        // System.out.println("Problem ist loesbar mit folgender Loesung:");
-        // System.out.println(Arrays.toString(problem.findModel()));
+      ISolver solver = SolverFactory.newDefault();
 
-        int[] ls = problem.findModel();
+      solver = new ModelIterator(solver);
 
+      solver.newVar(this.arr.length * this.arr[0].length);
 
-        for (int i = 0; i < ls.length; i++) {
-          if (ls[i] < 0 && myMap.get(Math.abs(ls[i])).isCovered()) {
-            if (displayActivated)
-              System.out.println("Das Square " + myMap.get(Math.abs(ls[i])).getPoint().toString()
-                  + "wird zur Queue hinzugefuegt");
+      for (Clause a : currentClauses) {
+        solver.addClause(new VecInt(a.getClause()));
+        // System.out.println(Arrays.toString(a.getClause()));
+      }
 
-            if (!safeSquare.contains(myMap.get(Math.abs(ls[i])).getPoint())) {
-              safeSquare.add(myMap.get(Math.abs(ls[i])).getPoint());
-            }
+      IProblem problem = solver;
 
+      HashSet<Square> possibleOnes = new HashSet<Square>(unknownSquares);
+
+      while (problem.isSatisfiable()) {
+
+        int[] loesung = problem.model();
+
+        // System.out.println(Arrays.toString(loesung));
+
+        for (int i = 0; i < loesung.length; i++) {
+
+          Square s = this.myMap.get(Math.abs(loesung[i]));
+
+          /*
+           * variable ist in diesem fall eine Bombe
+           */
+          if (loesung[i] > 0) {
+            possibleOnes.remove(s);
+            s.setBomb(Square.BOMB);
+            s.change(true);
           }
+          if (loesung[i] < 0) {
+            if (s.isBomb() == Square.BOMB) {
+              s.setBomb(Square.UNKNOWN);
+            } else if (s.isBomb() == Square.UNKNOWN) {
+              s.setBomb(Square.SAFE);
+            } else {
+              s.setBomb(Square.SAFE);
+            }
+          }
+
         }
 
-
-
-      } else {
-        System.out.println("Problem ist unloesbar");
-        return new Point(-1, -1);
       }
-    } catch (TimeoutException e) {
-      System.out.println("TimeOutF");
-    }
 
-    return new Point(-1, -1);
+      for (Square s : possibleOnes) {
+
+        if (s.isCovered() && !(s.isPossibleBomb()) && s.isBomb() == Square.SAFE) {
+          s.setBomb(Square.SAFE);
+          Point p = s.getPoint();
+          if (false)
+            System.out.println("Das Square (" + p.x + "|" + p.y + ") wird zur Queue hinzugefuegt");
+          this.safeSquares.add(s);
+          this.unknownSquares.remove(s);
+
+
+        }
+      }
+
+
+
+    } catch (ContradictionException e) {
+      System.out.println("contradiction");
+    } catch (TimeoutException ie) {
+      System.out.println("timeout");
+    }
 
 
   }
 
 
-  private LinkedList<int[]> createClause(int x, int y) {
+  /**
+   * berechnet Punkte, die safe keine Bomben sind und fügt sie zu einer Queue hinzu.
+   */
+  private void calcKNF() {
 
-    LinkedList<int[]> clauses = new LinkedList<int[]>();
+    currentClauses.clear();
 
-
-    if (this.arr[x][y].getNeighbourBombs() == 0) {
-      clauses.addAll(zeroNeighbours(x, y));
-    } else {
-      for (LinkedList<Integer> list : oneNeighbour(x, y, this.arr[x][y].getNeighbourBombs())) {
-        clauses.add(list.stream().mapToInt(i -> i).toArray());
-      }
+    // aufgedeckte Squares sind safe
+    for (Square s : this.openedSquares) {
+      currentClauses.add(Clause.UnitClause(s));
     }
 
-    // adding the KB of known notmines
-    for (int i = 0; i < this.arr.length; i++) {
-      for (int j = 0; j < this.arr[i].length; j++) {
+
+    // solver.setExpectedNumberOfClauses(31);
+    for (int i = 0; i < this.field.getNumOfCols(); i++) {
+      for (int j = 0; j < this.field.getNumOfRows(); j++) {
+
         if (!this.arr[i][j].isCovered()) {
-          clauses.add(new int[] {-this.arr[i][j].getID()});
-        }
-      }
-    }
-
-    return clauses;
-
-  }
-
-  private LinkedList<LinkedList<Integer>> oneNeighbour(int x, int y, int numNeighbours) {
-
-    LinkedList<LinkedList<Integer>> result = new LinkedList<LinkedList<Integer>>();
 
 
-    for (int i = 0; i < 256; i++) {
-
-      LinkedList<Integer> temp = new LinkedList<Integer>();
-
-      if (Integer.bitCount(i) != numNeighbours) {
-        String a = Integer.toBinaryString(i);
-        while (a.length() != 8) {
-          a = "0" + a;
-        }
-
-        int n = 0;
-        for (int k = -1; k <= 1; k++) {
-          for (int l = -1; l <= 1; l++) {
-
-            if (inBounds(x + k, y + l) && !(k == 0 && l == k)) {
-              if (String.valueOf(a.charAt(n++)) == "1") {
-                temp.add(-this.arr[x + k][y + l].getID());
-
-              } else {
-                temp.add(this.arr[x + k][y + l].getID());
-
-              }
-            }
-
+          // hinzufügen der KNF für nachbarbezoehungen
+          if (this.arr[i][j].getNeighbourBombs() == 0) {
+            zeroNeighbours(i, j);
+            // currentClauses.addAll(this.arr[i][j].neighbourClauses());
+          } else {
+            currentClauses.addAll(this.arr[i][j].neighbourClauses());
           }
+
+
+
         }
-
-        result.add(temp);
-
       }
-
-
     }
 
-    return result;
+    if (displayActivated)
+      ;
+    // System.out.println("size of clauses: " + currentClauses.size());
+
+    // for (Clause c : currentClauses) {
+    // System.out.println(Arrays.toString(c.getClause()));
+    // }
+
 
   }
 
-  private LinkedList<int[]> zeroNeighbours(int x, int y) {
 
-    LinkedList<int[]> clauses = new LinkedList<int[]>();
+
+  // fügt zu CurrentClauses die Klausel hinzu, dass alle nachbarn keine Minen sind
+  private void zeroNeighbours(int x, int y) {
+
 
     for (int i = -1; i <= 1; i++) {
       for (int j = -1; j <= 1; j++) {
         if (inBounds(x + i, y + j)) {
-          clauses.add(new int[] {-this.arr[x + i][y + j].getID()});
+          currentClauses.add(Clause.UnitClause(this.arr[x + i][y + j]));
         }
       }
     }
 
-    return clauses;
+
+  }
+
+
+  public void printInformation() {
+
+    if (displayActivated) {
+      System.out.println("-------------------");
+      System.out.println("meine Info ist ");
+
+
+      StringBuffer sb = new StringBuffer("");
+      for (int y = 0; y < this.field.getNumOfRows(); y++) {
+        for (int x = 0; x < this.field.getNumOfCols(); x++) {
+
+
+          if (!this.arr[x][y].isCovered())
+            sb.append(this.arr[x][y].getNeighbourBombs());
+          else {
+            sb.append("-");
+          }
+          sb.append(" ");
+        }
+        sb.append("\n");
+      }
+
+      System.out.println(sb.toString());
+      System.out.println("-------------------");
+    }
+
+  }
+
+  public Square[][] getArr() {
+    return this.arr;
   }
 
 

@@ -1,4 +1,4 @@
 # Minesweeper
 
-next steps: safe other safe squares in the queue 
-			implement clauses when there are actually some mines next to it
+next steps: die zufallsauswahl optimieren
+			auch speichern wer sicher eine bombe ist

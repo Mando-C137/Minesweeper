@@ -23,11 +23,13 @@ public class UsageExample {
   public static void main(String[] args) {
 
     // use smaller numbers for larger fields
-    int iterations = 1000;
+    int iterations = 1;
+
+    double ms = System.currentTimeMillis();
 
     int success = 0;
     for (int i = 0; i < iterations; i++) {
-      MSField f = new MSField("fields/" + fields[15]);
+      MSField f = new MSField("fields/" + fields[20]);
       MSAgent agent = new SatAgent(f);
 
       // to see what happens in the first iteration
@@ -46,6 +48,8 @@ public class UsageExample {
 
     }
     double rate = (double) success / (double) iterations;
+    ms = System.currentTimeMillis() - ms;
+    System.out.println("gebrauchte Zeit: " + (ms / 1000) + " s");
     System.out.println("Erfolgsquote: " + rate);
 
   }
