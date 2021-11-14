@@ -25,6 +25,9 @@ import domain.Square;
  */
 public class SatAgent extends MSAgent {
 
+
+  public final static int randomRange = 4;
+
   /**
    * unopened but safe Squares
    */
@@ -131,13 +134,13 @@ public class SatAgent extends MSAgent {
 
 
         if (this.safeSquares.isEmpty()) {
-          System.out.println("Guessing now");
+          if (this.displayActivated) {
+            System.out.println("Guessing now");
+          }
+          Square random = this.guessRandomSquare();
 
-          List<Square> ls = this.unknownSquares.stream().collect(toList());
-          // System.out.println(ls.size());
-          Square s = ls.get((int) (Math.random() * ls.size()));
-          this.unknownSquares.remove(s);
-          this.safeSquares.add(s);
+          this.unknownSquares.remove(random);
+          this.safeSquares.add(random);
         }
 
 
@@ -271,12 +274,15 @@ public class SatAgent extends MSAgent {
       }
 
       IProblem problem = solver;
-
+      // long before = System.currentTimeMillis();
       HashSet<Square> possibleOnes = new HashSet<Square>(unknownSquares);
-
-      while (problem.isSatisfiable()) {
+      boolean timeout = false;
+      int counter = 0;
+      A: while (problem.isSatisfiable()) {
 
         int[] loesung = problem.model();
+        counter++;
+
 
         // System.out.println(Arrays.toString(loesung));
 
@@ -298,8 +304,25 @@ public class SatAgent extends MSAgent {
 
         }
 
+
+        if (counter > 20000) {
+          timeout = true;
+          // System.out.println("timeout");
+          break A;
+        }
+
       }
 
+
+      if (timeout) {
+        // double after = (double) (System.currentTimeMillis() - before) / 1000;
+        // System.out.println(after);
+        Square add = this.guessRandomSquare();
+        this.unknownSquares.remove(add);
+        this.safeSquares.add(add);
+
+
+      }
       for (Square s : possibleOnes) {
 
         if (s.isCovered() && s.isBomb() && !s.isSafe()) {
@@ -374,6 +397,88 @@ public class SatAgent extends MSAgent {
 
   public Square[][] getArr() {
     return this.arr;
+  }
+
+  private Square guessRandomSquare() {
+
+    HashSet<Square> betterRandoms = new HashSet<Square>();
+
+    A: for (Square a : this.openedSquares) {
+
+      int count = 0;
+
+      for (Square neighbour : a.getNeighbours()) {
+        if (!neighbour.isCovered()) {
+          count++;
+        }
+      }
+
+      if (count < 3) {
+        continue;
+      }
+
+      for (int i = 0; i <= randomRange; i += 1) {
+
+
+        Point temp = new Point(a.getPoint().x + i, a.getPoint().y + i);
+        if (inBounds(temp.x, temp.y) && Math.abs(i + i) != (2 * Math.abs(randomRange))) {
+
+          Square s = this.arr[temp.x][temp.y];
+          if (this.unknownSquares.contains(s) && !this.openedSquares.contains(s)
+              && !this.bombSquares.contains(s)) {
+
+            betterRandoms.add(s);
+          }
+        }
+
+        temp = new Point(a.getPoint().x + i, a.getPoint().y - i);
+        if (inBounds(temp.x, temp.y) && Math.abs(i + i) != (2 * Math.abs(randomRange))) {
+
+          Square s = this.arr[temp.x][temp.y];
+          if (this.unknownSquares.contains(s) && !this.openedSquares.contains(s)
+              && !this.bombSquares.contains(s)) {
+
+            betterRandoms.add(s);
+          }
+        }
+
+        temp = new Point(a.getPoint().x - i, a.getPoint().y + i);
+        if (inBounds(temp.x, temp.y) && Math.abs(i + i) != (2 * Math.abs(randomRange))) {
+
+          Square s = this.arr[temp.x][temp.y];
+          if (this.unknownSquares.contains(s) && !this.openedSquares.contains(s)
+              && !this.bombSquares.contains(s)) {
+
+            betterRandoms.add(s);
+          }
+        }
+
+        temp = new Point(a.getPoint().x - i, a.getPoint().y - i);
+        if (inBounds(temp.x, temp.y) && Math.abs(i + i) != (2 * Math.abs(randomRange))) {
+
+          Square s = this.arr[temp.x][temp.y];
+          if (this.unknownSquares.contains(s) && !this.openedSquares.contains(s)
+              && !this.bombSquares.contains(s)) {
+
+            betterRandoms.add(s);
+          }
+        }
+
+        if (betterRandoms.size() > 20) {
+          break A;
+        }
+
+      }
+    }
+
+    if (!betterRandoms.isEmpty()) {
+      // System.out.println(betterRandoms.size());
+      List<Square> setToList = betterRandoms.stream().collect(toList());
+      return setToList.get((int) (Math.random() * betterRandoms.size()));
+    }
+
+    List<Square> setToList = this.unknownSquares.stream().collect(toList());
+    return setToList.get((int) (Math.random() * setToList.size()));
   }
 
 

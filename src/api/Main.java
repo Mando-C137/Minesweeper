@@ -1,12 +1,15 @@
 package api;
 
+import java.text.DecimalFormat;
 import domain.Square;
 
 /**
  * An example of how to use a MSAgent to solve the game. You can do whatever you want with this
  * class.
  */
-public class UsageExample {
+public class Main {
+
+
 
   /**
    * Array containing the names of all fields. If you want to iterate over all of them, this might
@@ -23,17 +26,19 @@ public class UsageExample {
   public static void main(String[] args) {
 
     // use smaller numbers for larger fields
-    int iterations = 1;
+    int iterations = 100;
+
+    int aufgabe = 23;
 
     double ms = System.currentTimeMillis();
 
     int success = 0;
-    for (int i = 0; i < iterations; i++) {
-      MSField f = new MSField("fields/" + fields[24]);
+    for (int i = 1; i <= iterations; i++) {
+      System.out.print("Iteration : " + i);
+      MSField f = new MSField("fields/" + fields[aufgabe]);
       MSAgent agent = new SatAgent(f);
-
       // to see what happens in the first iteration
-      if (i == 0) {
+      if (i == 1) {
         agent.activateDisplay();
       } else {
         agent.deactivateDisplay();
@@ -42,6 +47,10 @@ public class UsageExample {
       boolean solved = agent.solve();
       if (solved) {
         success++;
+        System.out.println("-- win");
+      } else {
+        System.out.println("-- loose");
+
       }
 
       Square.resetCounter();
@@ -49,7 +58,9 @@ public class UsageExample {
     }
     double rate = (double) success / (double) iterations;
     ms = System.currentTimeMillis() - ms;
-    System.out.println("gebrauchte Zeit: " + (ms / 1000) + " s");
+
+    String avgTime = new DecimalFormat("#0.000").format(ms / iterations / 1000);
+    System.out.println("gebrauchte Zeit bei  " + fields[aufgabe] + " : " + (avgTime) + " s");
     System.out.println("Erfolgsquote: " + rate);
 
   }

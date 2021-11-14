@@ -15,6 +15,7 @@ public class Square {
 
   private List<Square> neighbours;
 
+
   private int ID;
 
   private Point p;
@@ -115,11 +116,6 @@ public class Square {
 
 
     }
-    // System.out.println("--------------");
-    // for (Clause a : ls) {
-    // System.out.println(Arrays.toString(a.getClause()));
-    // }
-    // System.out.println("--------------");
 
     return ls;
 
@@ -154,6 +150,10 @@ public class Square {
 
   public void setBomb(boolean bomb) {
     this.bomb = bomb;
+  }
+
+  public List<Square> getNeighbours() {
+    return neighbours;
   }
 
 

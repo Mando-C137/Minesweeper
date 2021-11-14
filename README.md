@@ -1,9 +1,16 @@
 # Minesweeper
 
-next steps: die zufallsauswahl optimieren
-			auch speichern wer sicher eine bombe ist
-			
-			
-		Wir müssen kucken , ob bei einem Durchlauf
-			- eine Square durchgehend Bomb ist --> ist sicher eine Bombe
-			- eine Square durchgehen Safe ist --> ist sicher keine Bombe 
+next steps: zufall immer noch bissel komisch, eine aufgabe super schlecht
+		
+	
+		
+Probleeme die aufkamen
+
+
+bei random situation
+	- auswahl eines weit entfernten macht berechnungen sehr lang, weil es dadurch sehr viele Modelle gibt
+	--> auswahl von benachbarten feldern 
+	
+Speichern von safe und bomben macht UnitClauses
+
+Ein modell reicht nicht aus , es muss in allen möglichen modellen safe sein oder eine bombe sein 
