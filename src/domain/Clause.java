@@ -41,4 +41,9 @@ public class Clause {
     return this.clause;
   }
 
+  public static Clause BombClause(Square s) {
+
+    return new Clause(new int[] {s.getID()});
+  }
+
 }

@@ -7,12 +7,6 @@ import api.SatAgent;
 
 public class Square {
 
-  public final static int SAFE = 0;
-
-  public final static int BOMB = 1;
-
-  public final static int UNKNOWN = 2;
-
   public static int count = 1;
 
   private boolean covered;
@@ -25,17 +19,10 @@ public class Square {
 
   private Point p;
 
-  private int isBomb;
+  private boolean safe;
 
-  private boolean possibleBomb = false;
+  private boolean bomb;
 
-  public boolean isPossibleBomb() {
-    return this.possibleBomb;
-  }
-
-  public void change(boolean ch) {
-    this.possibleBomb = ch;
-  }
 
 
   public Square(Point p) {
@@ -44,7 +31,8 @@ public class Square {
     covered = true;
     neighbourBombs = 8;
     this.neighbours = new LinkedList<Square>();
-    this.isBomb = UNKNOWN;
+    this.safe = true;
+    this.bomb = true;
 
   }
 
@@ -152,16 +140,20 @@ public class Square {
     return false;
   }
 
-  public void setBomb(int i) {
-    if (i < 0 || i > 2) {
-      throw new IllegalArgumentException("muss 0 oder 1 oder 2 sein");
-    }
-
-    this.isBomb = i;
+  public boolean isSafe() {
+    return safe;
   }
 
-  public int isBomb() {
-    return this.isBomb;
+  public void setSafe(boolean safe) {
+    this.safe = safe;
+  }
+
+  public boolean isBomb() {
+    return bomb;
+  }
+
+  public void setBomb(boolean bomb) {
+    this.bomb = bomb;
   }
 
 

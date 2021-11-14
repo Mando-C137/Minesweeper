@@ -29,7 +29,7 @@ public class UsageExample {
 
     int success = 0;
     for (int i = 0; i < iterations; i++) {
-      MSField f = new MSField("fields/" + fields[20]);
+      MSField f = new MSField("fields/" + fields[24]);
       MSAgent agent = new SatAgent(f);
 
       // to see what happens in the first iteration

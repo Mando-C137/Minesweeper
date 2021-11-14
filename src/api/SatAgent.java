@@ -40,6 +40,8 @@ public class SatAgent extends MSAgent {
    */
   private HashSet<Square> unknownSquares;
 
+  private HashSet<Square> bombSquares;
+
   /**
    * map that maps the IDs of the Squares to themselves
    */
@@ -76,7 +78,7 @@ public class SatAgent extends MSAgent {
     this.safeSquares = new ArrayDeque<Square>();
     this.openedSquares = new HashSet<Square>();
     this.unknownSquares = new HashSet<Square>();
-
+    this.bombSquares = new HashSet<Square>();
     for (int i = 0; i < this.field.getNumOfCols(); i++) {
       for (int j = 0; j < this.field.getNumOfRows(); j++) {
         unknownSquares.add(this.arr[i][j]);
@@ -125,12 +127,15 @@ public class SatAgent extends MSAgent {
           makeSAT();
         }
         Point p;
+
+
+
         if (this.safeSquares.isEmpty()) {
           System.out.println("Guessing now");
 
           List<Square> ls = this.unknownSquares.stream().collect(toList());
-          System.out.println(ls.size());
-          Square s = ls.get((int) (Math.random() * ls.size() / 2));
+          // System.out.println(ls.size());
+          Square s = ls.get((int) (Math.random() * ls.size()));
           this.unknownSquares.remove(s);
           this.safeSquares.add(s);
         }
@@ -193,14 +198,65 @@ public class SatAgent extends MSAgent {
     return x >= 0 && x < this.field.getNumOfCols() && y >= 0 && y < this.field.getNumOfRows();
   }
 
+  /**
+   * berechnet Punkte, die safe keine Bomben sind und fügt sie zu einer Queue hinzu.
+   */
+  private void calcKNF() {
+
+    currentClauses.clear();
+
+    // aufgedeckte Squares sind safe
+    for (Square s : this.openedSquares) {
+      currentClauses.add(Clause.UnitClause(s));
+    }
+
+    // die sicheren Bomben Squares sind obviously sichere Bomben
+    for (Square s : this.bombSquares) {
+      currentClauses.add(Clause.BombClause(s));
+    }
+
+
+
+    // solver.setExpectedNumberOfClauses(31);
+    for (int i = 0; i < this.field.getNumOfCols(); i++) {
+      for (int j = 0; j < this.field.getNumOfRows(); j++) {
+
+        if (!this.arr[i][j].isCovered()) {
+
+
+          // hinzufügen der KNF für nachbarbezoehungen
+          if (this.arr[i][j].getNeighbourBombs() == 0) {
+            zeroNeighbours(i, j);
+            // currentClauses.addAll(this.arr[i][j].neighbourClauses());
+          } else {
+            currentClauses.addAll(this.arr[i][j].neighbourClauses());
+          }
+
+
+
+        }
+      }
+    }
+
+    // if (displayActivated)
+    //
+    // System.out.println("size of clauses: " + currentClauses.size());
+    //
+    // for (Clause c : currentClauses) {
+    // System.out.println(Arrays.toString(c.getClause()));
+    // }
+
+
+  }
+
+
 
   private void makeSAT() {
 
     for (Square s : this.unknownSquares) {
-      s.setBomb(Square.UNKNOWN);
-      s.change(false);
+      s.setBomb(true);
+      s.setSafe(true);
     }
-
 
     try {
       ISolver solver = SolverFactory.newDefault();
@@ -228,23 +284,17 @@ public class SatAgent extends MSAgent {
 
           Square s = this.myMap.get(Math.abs(loesung[i]));
 
-          /*
-           * variable ist in diesem fall eine Bombe
-           */
-          if (loesung[i] > 0) {
-            possibleOnes.remove(s);
-            s.setBomb(Square.BOMB);
-            s.change(true);
-          }
-          if (loesung[i] < 0) {
-            if (s.isBomb() == Square.BOMB) {
-              s.setBomb(Square.UNKNOWN);
-            } else if (s.isBomb() == Square.UNKNOWN) {
-              s.setBomb(Square.SAFE);
-            } else {
-              s.setBomb(Square.SAFE);
+          if (this.unknownSquares.contains(s)) {
+            if (loesung[i] > 0) {
+
+              s.setSafe(false);
+            }
+            if (loesung[i] < 0) {
+              s.setBomb(false);
+
             }
           }
+
 
         }
 
@@ -252,16 +302,17 @@ public class SatAgent extends MSAgent {
 
       for (Square s : possibleOnes) {
 
-        if (s.isCovered() && !(s.isPossibleBomb()) && s.isBomb() == Square.SAFE) {
-          s.setBomb(Square.SAFE);
-          Point p = s.getPoint();
-          if (false)
-            System.out.println("Das Square (" + p.x + "|" + p.y + ") wird zur Queue hinzugefuegt");
-          this.safeSquares.add(s);
+        if (s.isCovered() && s.isBomb() && !s.isSafe()) {
           this.unknownSquares.remove(s);
-
-
+          this.bombSquares.add(s);
+        } else if (s.isCovered() && !s.isBomb() && s.isSafe()) {
+          this.unknownSquares.remove(s);
+          this.safeSquares.add(s);
+          Point p = s.getPoint();
+          // if (displayActivated)
+          // System.out.println("Das Square (" + p.x + "|" + p.y + ") wird zur Queue hinzugefuegt");
         }
+
       }
 
 
@@ -271,52 +322,6 @@ public class SatAgent extends MSAgent {
     } catch (TimeoutException ie) {
       System.out.println("timeout");
     }
-
-
-  }
-
-
-  /**
-   * berechnet Punkte, die safe keine Bomben sind und fügt sie zu einer Queue hinzu.
-   */
-  private void calcKNF() {
-
-    currentClauses.clear();
-
-    // aufgedeckte Squares sind safe
-    for (Square s : this.openedSquares) {
-      currentClauses.add(Clause.UnitClause(s));
-    }
-
-
-    // solver.setExpectedNumberOfClauses(31);
-    for (int i = 0; i < this.field.getNumOfCols(); i++) {
-      for (int j = 0; j < this.field.getNumOfRows(); j++) {
-
-        if (!this.arr[i][j].isCovered()) {
-
-
-          // hinzufügen der KNF für nachbarbezoehungen
-          if (this.arr[i][j].getNeighbourBombs() == 0) {
-            zeroNeighbours(i, j);
-            // currentClauses.addAll(this.arr[i][j].neighbourClauses());
-          } else {
-            currentClauses.addAll(this.arr[i][j].neighbourClauses());
-          }
-
-
-
-        }
-      }
-    }
-
-    if (displayActivated)
-      ;
-    // System.out.println("size of clauses: " + currentClauses.size());
-
-    // for (Clause c : currentClauses) {
-    // System.out.println(Arrays.toString(c.getClause()));
-    // }
 
 
   }
