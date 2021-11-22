@@ -46,4 +46,6 @@ public class Clause {
     return new Clause(new int[] {s.getID()});
   }
 
+
+
 }

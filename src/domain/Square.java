@@ -15,7 +15,6 @@ public class Square {
 
   private List<Square> neighbours;
 
-
   private int ID;
 
   private Point p;
@@ -23,7 +22,6 @@ public class Square {
   private boolean safe;
 
   private boolean bomb;
-
 
 
   public Square(Point p) {

@@ -127,6 +127,9 @@ public class SatAgent extends MSAgent {
         // x and y must be computed here
         if (this.safeSquares.isEmpty()) {
           calcKNF();
+
+
+
           makeSAT();
         }
         Point p;
@@ -305,9 +308,9 @@ public class SatAgent extends MSAgent {
         }
 
 
-        if (counter > 20000) {
+        if (counter > 20_000) {
           timeout = true;
-          // System.out.println("timeout");
+          System.out.println("timeout");
           break A;
         }
 
@@ -320,7 +323,7 @@ public class SatAgent extends MSAgent {
         Square add = this.guessRandomSquare();
         this.unknownSquares.remove(add);
         this.safeSquares.add(add);
-
+        return;
 
       }
       for (Square s : possibleOnes) {
@@ -332,8 +335,8 @@ public class SatAgent extends MSAgent {
           this.unknownSquares.remove(s);
           this.safeSquares.add(s);
           Point p = s.getPoint();
-          // if (displayActivated)
-          // System.out.println("Das Square (" + p.x + "|" + p.y + ") wird zur Queue hinzugefuegt");
+          if (displayActivated)
+            System.out.println("Das Square (" + p.x + "|" + p.y + ") wird zur Queue hinzugefuegt");
         }
 
       }
@@ -479,6 +482,35 @@ public class SatAgent extends MSAgent {
 
     List<Square> setToList = this.unknownSquares.stream().collect(toList());
     return setToList.get((int) (Math.random() * setToList.size()));
+  }
+
+
+  public static boolean haveSame(HashSet<Clause> h1, HashSet<Clause> h2) {
+
+
+    for (Clause a : h1) {
+      for (Clause c : h2)
+        for (int i : a.getClause()) {
+          for (int j : c.getClause()) {
+            if (Math.abs(i) == Math.abs(j)) {
+              return true;
+            }
+          }
+        }
+
+
+    }
+
+    return false;
+
+  }
+
+  public HashSet<Clause> unite(HashSet<Clause> a, HashSet<Clause> c) {
+
+    HashSet<Clause> result = new HashSet<Clause>(a);
+    result.addAll(c);
+
+    return result;
   }
 
 

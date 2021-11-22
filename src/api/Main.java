@@ -1,6 +1,10 @@
 package api;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.DecimalFormat;
+import java.util.regex.Pattern;
 import domain.Square;
 
 /**
@@ -8,8 +12,6 @@ import domain.Square;
  * class.
  */
 public class Main {
-
-
 
   /**
    * Array containing the names of all fields. If you want to iterate over all of them, this might
@@ -25,15 +27,70 @@ public class Main {
 
   public static void main(String[] args) {
 
+    for (int i = 0; i < fields.length; i++) {
+      System.out.println(i + ": " + fields[i]);
+    }
+
+    try {
+      System.out.println("Enter Aufgabenindex");
+      int aufg = getInput();
+      if (aufg != -1)
+        Main.execute(aufg);
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+
+
+  }
+
+  private static int getInput() throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    int result = 0;
+    try {
+      String line = br.readLine();
+      br.close();
+      if (line == null) {
+        throw new IOException("no input");
+      }
+
+      Pattern pattern = Pattern.compile("\\d+");
+
+      if (!pattern.matcher(line).matches()) {
+        throw new IOException("wrong input");
+      }
+
+      result = Integer.parseInt(line);
+
+      if (result < 0 || result > 23) {
+        throw new IOException("wrong input");
+      }
+
+
+      return result;
+
+    } catch (IOException e) {
+
+      e.printStackTrace();
+    }
+    System.out.println("falsche eingabe");
+    return -1;
+  }
+
+
+  private static void execute(int aufgabe) {
+
     // use smaller numbers for larger fields
     int iterations = 100;
 
-    int aufgabe = 23;
 
-    double ms = System.currentTimeMillis();
+    double sum = 0;
 
     int success = 0;
     for (int i = 1; i <= iterations; i++) {
+
+      double iterationTime = System.currentTimeMillis();
+
       System.out.print("Iteration : " + i);
       MSField f = new MSField("fields/" + fields[aufgabe]);
       MSAgent agent = new SatAgent(f);
@@ -48,7 +105,9 @@ public class Main {
       if (solved) {
         success++;
         System.out.println("-- win");
+        sum += (System.currentTimeMillis() - iterationTime);
       } else {
+        iterationTime = 0;
         System.out.println("-- loose");
 
       }
@@ -56,13 +115,18 @@ public class Main {
       Square.resetCounter();
 
     }
-    double rate = (double) success / (double) iterations;
-    ms = System.currentTimeMillis() - ms;
+    String rate = new DecimalFormat("#0.0").format(100 * (double) success / (double) iterations);
 
-    String avgTime = new DecimalFormat("#0.000").format(ms / iterations / 1000);
-    System.out.println("gebrauchte Zeit bei  " + fields[aufgabe] + " : " + (avgTime) + " s");
-    System.out.println("Erfolgsquote: " + rate);
+    double timeInSeconds = sum / 1000;
+
+    String avgTime = new DecimalFormat("#0.000").format(timeInSeconds / success);
+
+    System.out.printf("%s \t| %s | %s | %ss", fields[aufgabe], "" + iterations, rate, avgTime);
+
+
 
   }
+
+
 
 }
