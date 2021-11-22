@@ -121,7 +121,8 @@ public class Main {
 
     String avgTime = new DecimalFormat("#0.000").format(timeInSeconds / success);
 
-    System.out.printf("%s \t| %s | %s | %ss", fields[aufgabe], "" + iterations, rate, avgTime);
+    System.out.printf("%s \t| %s iterations| %s prozent | %ss avg-time", fields[aufgabe],
+        "" + iterations, rate, avgTime);
 
 
 
